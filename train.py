@@ -81,7 +81,7 @@ dbi_list = []
 CH_list = []
 Rec_list = []
 
-dataname = "Coffee"
+dataname = "NATOPS"
 
 # data = np.load(f'datasets2/data/{dataname}_mu_feature_X_test.npy', allow_pickle=True)
 # label = np.load(f'datasets2/labels/{dataname}_mu_feature_y_test.npy', allow_pickle=True).astype(int)
@@ -89,8 +89,13 @@ dataname = "Coffee"
 # data = np.load(f'datasets2/data/{dataname}_multi_feature_X_test.npy', allow_pickle=True)
 # label = np.load(f'datasets2/labels/{dataname}_multi_feature_y_test.npy', allow_pickle=True).astype(int)
 
-data = np.load(f'testdata/{dataname}_X_test.npy', allow_pickle=True)
-label = np.load(f'testdata/{dataname}_y_test.npy', allow_pickle=True).astype(int)
+# data = np.load(f'testdata/{dataname}_X_test.npy', allow_pickle=True)
+# label = np.load(f'testdata/{dataname}_y_test.npy', allow_pickle=True).astype(int)
+
+data_all = np.load(f'./New_Data/{dataname}/{dataname}.npy',allow_pickle=True).item()
+train_X,train_Y,data,label = data_all['train_X'],data_all['train_Y'],data_all['test_X'],data_all['test_Y']
+# data_train = data_test
+# label_train = label_test
 
 # data = np.load(f'./time_data/{dataname}_X.npy')
 # label = np.load(f'./time_data/{dataname}_Y.npy').astype(int)
@@ -139,7 +144,7 @@ lr = 0.1
 device = 'cuda'
 epoch_num = 100
 
-for seed in range(1,2):
+for seed in range(3,5):
 
     setup_seed(seed)
     alpha = uniform(0.1, 1)
@@ -156,15 +161,6 @@ for seed in range(1,2):
     train_data = torch.tensor(train_data).to(device)
     sample_size = train_data.shape[0]
 
-    # x1 = train_data.float()
-    # x2 = train_data.float()
-    # X1 = train_data.float()
-    # X2 = train_data.float()
-
-    # x1 = torch.tensor(base_aug.frequency_masking(data)).float().to(device)
-    # x2 = torch.tensor(base_aug.frequency_masking(data)).float().to(device)
-    # X1 = torch.tensor(base_aug.frequency_masking(data)).float().to(device)
-    # X2 = torch.tensor(base_aug.frequency_masking(data)).float().to(device)
 
     train_data =  train_data.to(device)
 
@@ -172,6 +168,17 @@ for seed in range(1,2):
         start_time = time.process_time()
         x1, x2 = FTAug(train_data, goal='recon')
         X1, X2 = FTAug(train_data, goal='con')
+
+        # x1 = torch.tensor(base_aug.jittering(data)).float().to(device)
+        # x2 = torch.tensor(base_aug.jittering(data)).float().to(device)
+        # X1 = torch.tensor(base_aug.jittering(data)).float().to(device)
+        # X2 = torch.tensor(base_aug.jittering(data)).float().to(device)
+
+        # x1 = train_data.float()
+        # x2 = train_data.float()
+        # X1 = train_data.float()
+        # X2 = train_data.float()
+
         model.train()
         r1, r2, x1, x2, m1, m2, o1, o2 = model(x1, x2, X1, X2, train_data)
         recon1 = compute_reconstruction_loss(x1, o1, m1)
@@ -227,8 +234,8 @@ for seed in range(1,2):
                 sample_size = centers_1.shape[0]
 
 
-                centers_1_flat = r1.reshape(-1, 8)
-                centers_2_flat = r2.reshape(-1, 8)
+                centers_1_flat = r1.reshape(-1, 10)
+                centers_2_flat = r2.reshape(-1, 10)
                 centers_1_flat = F.normalize(centers_1_flat, dim=1, p=2)
                 centers_2_flat = F.normalize(centers_2_flat, dim=1, p=2)
 
@@ -251,8 +258,8 @@ for seed in range(1,2):
                 con_loss = pos_contrastive + alpha * neg_contrastive
                 loss = con_loss + recon_loss
         else:
-            r1_flat = r1.reshape(-1, 8)
-            r2_flat = r2.reshape(-1, 8)
+            r1_flat = r1.reshape(-1, 10)
+            r2_flat = r2.reshape(-1, 10)
             r1_flat = F.normalize(r1_flat, dim=1, p=2)
             r2_flat = F.normalize(r2_flat, dim=1, p=2)
 
@@ -270,7 +277,7 @@ for seed in range(1,2):
                     total_loss += loss_chunk
 
             con_loss = total_loss
-        loss = recon_loss + con_loss
+        loss = con_loss + recon_loss
         loss.backward(retain_graph=True)
         optimizer.step()
         optimizer.zero_grad()
@@ -295,9 +302,8 @@ for seed in range(1,2):
 
             import matplotlib.pyplot as plt
             from sklearn.manifold import TSNE
-            import seaborn as sns
 
-            tsne = TSNE(n_components=2, random_state=seed, perplexity=27)
+            tsne = TSNE(n_components=2, random_state=seed, perplexity=10)
             R_2d = tsne.fit_transform(R.reshape(R.shape[0],-1).cpu().detach().numpy())
 
             # 创建图形
@@ -355,9 +361,9 @@ for seed in range(1,2):
             plt.tight_layout()
 
             # 保存为PDF
-            # plt.savefig(f'./fig/{dataname}.pdf',
-            #             format='pdf', bbox_inches='tight')
-            # plt.show()
+            plt.savefig(f'./fig/{dataname}.pdf',
+                        format='pdf', bbox_inches='tight')
+            plt.show()
             plt.close(fig)  # 关闭图形以避免内存泄漏
 
 
@@ -402,14 +408,18 @@ nmi_list = np.array(nmi_list)
 slt_list = np.array(slt_list)
 dbi_list = np.array(dbi_list)
 CH_list = np.array(CH_list)
-print("acc:",acc_list.mean(), "±", acc_list.std())
-print("ari:",dcv_list.mean(), "±", dcv_list.std())
-print("f1:",f1_list.mean(), "±", f1_list.std())
-print("pre:",pre_list.mean(), "±", pre_list.std())
-print("rec:",Rec_list.mean(), "±", Rec_list.std())
-print("nmi:",nmi_list.mean(), "±", nmi_list.std())
-print("slt:",slt_list.mean(), "±", slt_list.std())
-print("dbi:",dbi_list.mean(), "±", dbi_list.std())
-print("CH:",CH_list.mean(), "±", CH_list.std())
+# print("acc:",acc_list.mean(), "±", acc_list.std())
+# print("ari:",dcv_list.mean(), "±", dcv_list.std())
+# print("f1:",f1_list.mean(), "±", f1_list.std())
+# print("pre:",pre_list.mean(), "±", pre_list.std())
+# print("rec:",Rec_list.mean(), "±", Rec_list.std())
+# print("nmi:",nmi_list.mean(), "±", nmi_list.std())
+# print("slt:",slt_list.mean(), "±", slt_list.std())
+# print("dbi:",dbi_list.mean(), "±", dbi_list.std())
+# print("CH:",CH_list.mean(), "±", CH_list.std())
+
+print(f"acc: {acc_list.mean():.4f} ± {acc_list.std():.4f}")
+print(f"f1: {f1_list.mean():.4f} ± {f1_list.std():.4f}")
+print(f"nmi: {nmi_list.mean():.4f} ± {nmi_list.std():.4f}")
 
 

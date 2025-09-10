@@ -5,7 +5,7 @@ import random
 from sklearn.metrics import accuracy_score, normalized_mutual_info_score, adjusted_rand_score, f1_score, \
     silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from scipy.optimize import linear_sum_assignment
-
+from scipy.special import comb
 
 
 def eva(X, ture_labels, predict_labels, show_details=False):
@@ -26,7 +26,7 @@ def eva(X, ture_labels, predict_labels, show_details=False):
 
     # 计算聚类评价指标
     acc = calculate_acc(true_label_flat, predict_labels_flat)
-    dcv = calculate_dcv(true_label_flat, predict_labels_flat)
+    dcv = adjusted_rand_index(true_label_flat, predict_labels_flat)
     f1 = calculate_f1(true_label_flat, predict_labels_flat)
     pre = calculate_precision(true_label_flat, predict_labels_flat)
     rec = calculate_recall(true_label_flat, predict_labels_flat)
@@ -153,30 +153,63 @@ def calculate_acc(y_true, y_pred):    #这里输入的都是展平后的一维�
     return acc
 
 
-def calculate_dcv(y_true, y_pred):
+def adjusted_rand_index(y_true, y_pred):
+    """
+    计算调整兰德指数 (Adjusted Rand Index, ARI)
+
+    参数:
+    y_true -- 真实标签数组
+    y_pred -- 预测标签数组
+
+    返回:
+    ari -- 调整兰德指数，范围[-1, 1]，值越大表示聚类结果与真实标签越一致
+    """
+    # 将输入转换为numpy数组
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
-    # 样本对的总数
-    n = len(y_true)
-    # 初始化计数器
-    N_00 = N_11 = N_01 = N_10 = 0
-    # 计算样本对之间的关系
-    for i in range(n):
-        for j in range(i + 1, n):  # 避免重复计算对
-            true_same = (y_true[i] == y_true[j])
-            pred_same = (y_pred[i] == y_pred[j])
 
-            if true_same and pred_same:
-                N_11 += 1
-            elif not true_same and not pred_same:
-                N_00 += 1
-            elif true_same and not pred_same:
-                N_01 += 1
-            elif not true_same and pred_same:
-                N_10 += 1
-    # 计算 DCV
-    dcv = (N_00 + N_11) / (N_00 + N_01 + N_10 + N_11)
-    return dcv
+    # 确保两个数组长度相同
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true and y_pred must have the same length")
+
+    # 创建列联表（ contingency table ）
+    n = len(y_true)
+    classes_true = np.unique(y_true)
+    classes_pred = np.unique(y_pred)
+
+    # 初始化列联表
+    contingency = np.zeros((len(classes_true), len(classes_pred)), dtype=int)
+
+    # 填充列联表
+    for i, true_label in enumerate(classes_true):
+        for j, pred_label in enumerate(classes_pred):
+            contingency[i, j] = np.sum((y_true == true_label) & (y_pred == pred_label))
+
+    # 计算行和与列和
+    a = contingency.sum(axis=1)  # 每行的和（真实类别的样本数）
+    b = contingency.sum(axis=0)  # 每列的和（预测类别的样本数）
+
+    # 计算组合数
+    sum_comb_a = sum(comb(n_i, 2) for n_i in a)  # 真实类别中所有可能的样本对
+    sum_comb_b = sum(comb(n_j, 2) for n_j in b)  # 预测类别中所有可能的样本对
+    sum_comb = sum(comb(n_ij, 2) for n_ij in contingency.flatten())  # 列联表中每个单元格的组合数
+
+    # 计算所有可能的样本对总数
+    total_comb = comb(n, 2)
+
+    # 计算期望指数
+    expected_index = sum_comb_a * sum_comb_b / total_comb
+
+    # 计算最大可能指数
+    max_index = (sum_comb_a + sum_comb_b) / 2
+
+    # 计算调整兰德指数
+    if max_index == expected_index:
+        ari = 0.0  # 避免除以零
+    else:
+        ari = (sum_comb - expected_index) / (max_index - expected_index)
+
+    return ari
 
 
 
