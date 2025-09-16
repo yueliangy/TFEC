@@ -9,11 +9,11 @@ Multivariate Time-Series (MTS) clustering is crucial for signal processing and d
 1. Neglecting clustering information during positive/negative sample pair construction;  
 2. Introducing unreasonable inductive biases through augmentation strategies that destroy time dependence and periodicity.
 
-To address these, we propose **TFEC** — a novel Temporal-Frequency Enhanced Contrastive Learning framework that integrates:
+To address these, this paper proposes **TFEC** — a novel Temporal-Frequency Enhanced Contrastive Learning framework that integrates:
 - A **temporal-frequency co-enhancement mechanism** generating low-distortion representations through aligned cropping and adaptive spectral mixing.
 - A **synergistic dual-path learning architecture** combining pseudo-label guided contrastive learning (PGCL) and reconstruction adjustment (READ) to jointly improve cluster distribution and representation fidelity.
 
-Extensive evaluations on six real-world benchmark UCR datasets demonstrate that TFEC achieves state-of-the-art performance, with an average improvement of **8.1% in NMI** over strong baselines.
+Extensive evaluations on six real-world benchmark UEA datasets demonstrate that TFEC achieves state-of-the-art performance, with an average improvement of **4.48% in NMI** over strong baselines.
 
 ## 🚀 Key Features
 
