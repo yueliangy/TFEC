@@ -54,7 +54,7 @@ class TSRL(nn.Module):
         # X1 = [torch.tensor(arr, dtype=torch.float32) for arr in X1]
         # X2 = [torch.tensor(arr, dtype=torch.float32) for arr in X2]
 
-        # 完整数据-con
+  
         if self.training:
             x_whole1 = self.input_fc(X1)
             x_whole1 = x_whole1.transpose(1, 2)
@@ -68,7 +68,7 @@ class TSRL(nn.Module):
             x_whole2 = x_whole2.transpose(1, 2)  # B x T x Co
             x_whole2 = self.repr_dropout(x_whole2)
 
-        # 缺失数据-recon
+
         if self.training:
             x_interp1 = self.input_fc(x1)
             x_interp1 = x_interp1.transpose(1, 2)
@@ -149,4 +149,5 @@ class TSRL(nn.Module):
             return x_whole1, x_whole2, outputs1, outputs2, m1, m2, x1, x2
         else:
             return x
+
 
