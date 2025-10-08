@@ -17,31 +17,12 @@ from sklearn.preprocessing import LabelEncoder
 import time
 
 def compute_reconstruction_loss(outputs, encoder_output, mask, loss_type='mae'):
-    """
-    计算重构损失和插补损失。
 
-    Args:
-        outputs: 解码器重构后的输出，形状为 (sample_num, seq_len, feature_dim)
-        encoder_output: 原始输入序列，形状为 (sample_num, seq_len, feature_dim)，包含缺失值
-        mask: 掩码矩阵，形状为 (sample_num, seq_len)，非缺失位置为 1，缺失位置为 0
-        loss_type: 损失类型，可选 'mse' 或 'mae'，默认为 'mse'
-
-    Returns:
-        reconstruction_loss: 非缺失位置的重构损失
-        imputation_loss: 缺失位置的插补损失
-        total_loss: 总损失（重构损失和插补损失之和）
-    """
-    # 扩展 mask，使其与 outputs 和 encoder_output 对齐
-    # feature_dim = outputs.size(-1)
-    # mask_expanded = mask.unsqueeze(-1)
-    # print(mask.shape)
-    # print(outputs.shape)
-    # print(encoder_output.shape)
 
     outputs = outputs.to(dtype=torch.float32, device=mask.device)
     encoder_output = encoder_output.to(dtype=torch.float32, device=mask.device)
 
-    # 非缺失位置重构损失
+
     if loss_type == 'mse':
         reconstruction_loss = F.mse_loss(outputs * mask, encoder_output * mask, reduction='sum')
     elif loss_type == 'mae':
@@ -49,22 +30,19 @@ def compute_reconstruction_loss(outputs, encoder_output, mask, loss_type='mae'):
     else:
         raise ValueError("loss_type must be 'mse' or 'mae'")
 
-    # 缺失位置插补损失
-    imputation_mask = (1 - mask)  # 缺失位置掩码
+
+    imputation_mask = (1 - mask)
     if loss_type == 'mse':
         imputation_loss = F.mse_loss(outputs * imputation_mask, encoder_output * imputation_mask, reduction='sum')
     elif loss_type == 'mae':
         imputation_loss = F.l1_loss(outputs * imputation_mask, encoder_output * imputation_mask, reduction='sum')
 
-    # 计算有效元素数量
     valid_elements_recon = mask.sum()
     valid_elements_imp = imputation_mask.sum()
 
-    # 平均化损失，防止有效元素为 0
     reconstruction_loss = reconstruction_loss / (valid_elements_recon + 1e-10)
     imputation_loss = imputation_loss / (valid_elements_imp + 1e-10)
 
-    # 总损失
     total_loss = reconstruction_loss + imputation_loss
 
     return total_loss
@@ -83,22 +61,12 @@ Rec_list = []
 
 dataname = "NATOPS"
 
-# data = np.load(f'datasets2/data/{dataname}_mu_feature_X_test.npy', allow_pickle=True)
-# label = np.load(f'datasets2/labels/{dataname}_mu_feature_y_test.npy', allow_pickle=True).astype(int)
+#ERing AtrialFibrillation
 
-# data = np.load(f'datasets2/data/{dataname}_multi_feature_X_test.npy', allow_pickle=True)
-# label = np.load(f'datasets2/labels/{dataname}_multi_feature_y_test.npy', allow_pickle=True).astype(int)
-
-# data = np.load(f'testdata/{dataname}_X_test.npy', allow_pickle=True)
-# label = np.load(f'testdata/{dataname}_y_test.npy', allow_pickle=True).astype(int)
 
 data_all = np.load(f'./New_Data/{dataname}/{dataname}.npy',allow_pickle=True).item()
 train_X,train_Y,data,label = data_all['train_X'],data_all['train_Y'],data_all['test_X'],data_all['test_Y']
-# data_train = data_test
-# label_train = label_test
 
-# data = np.load(f'./time_data/{dataname}_X.npy')
-# label = np.load(f'./time_data/{dataname}_Y.npy').astype(int)
 label_encoder = LabelEncoder()
 label = label_encoder.fit_transform(label)
 
@@ -119,12 +87,10 @@ train_data = data
 train_label = label
 
 # num_samples = sample_num
-# subset_size = int(0.5 * num_samples)  # 选择 50% 的样本数
+# subset_size = int(0.5 * num_samples)
 #
-# # 随机选择 50% 的样本的索引
 # indices = torch.randperm(num_samples)[:subset_size]
 #
-# # 根据索引选择样本和标签
 # train_data = train_data[indices]
 # train_label = train_label[indices]
 # num_cluster = len(np.unique(train_label))
@@ -144,7 +110,7 @@ lr = 0.1
 device = 'cuda'
 epoch_num = 100
 
-for seed in range(3,5):
+for seed in range(4):
 
     setup_seed(seed)
     alpha = uniform(0.1, 1)
@@ -188,9 +154,8 @@ for seed in range(3,5):
         if epoch > 60:
             high_confidence = torch.min(dis, dim=1).values.to(device)
             threshold = torch.sort(high_confidence).values[int(len(high_confidence) * 0.5)]
-            high_confidence_idx = torch.where(high_confidence < threshold)[0]  # 用torch.where替代numpy索引
+            high_confidence_idx = torch.where(high_confidence < threshold)[0]
 
-            # pos samples（全程使用张量操作，移除cpu()和numpy()）
             index = torch.tensor(range(train_data.shape[0]), device=device)[high_confidence_idx]
             y_sam = torch.tensor(predict_labels, device=device)[high_confidence_idx]
             index = index[torch.argsort(y_sam)]
@@ -203,7 +168,7 @@ for seed in range(3,5):
             if len(class_num) < 2:
                 continue
 
-            pos_contrastive = 0.0  # 初始化为浮点张量
+            pos_contrastive = 0.0
             centers_1 = torch.tensor([], device=device)
             centers_2 = torch.tensor([], device=device)
 
@@ -211,11 +176,9 @@ for seed in range(3,5):
                 class_num[key[i + 1]] += class_num[key[i]]
                 now = index[class_num[key[i]]:class_num[key[i + 1]]]
 
-                # 直接索引张量，保留梯度（移除detach()和numpy()）
                 pos_embed_1 = r1[torch.randint(now.shape[0], (int(now.shape[0] * 0.8),), device=device)]
                 pos_embed_2 = r1[torch.randint(now.shape[0], (int(now.shape[0] * 0.8),), device=device)]
 
-                # 用PyTorch归一化替代numpy（保留梯度）
                 pos_embed_1 = F.normalize(pos_embed_1, dim=1, p=2)
                 pos_embed_2 = F.normalize(pos_embed_2, dim=1, p=2)
 
@@ -239,7 +202,7 @@ for seed in range(3,5):
                 centers_1_flat = F.normalize(centers_1_flat, dim=1, p=2)
                 centers_2_flat = F.normalize(centers_2_flat, dim=1, p=2)
 
-                total_neg_contrastive_loss = 0.0  # 初始化为浮点张量
+                total_neg_contrastive_loss = 0.0
                 chunk_size = 100
                 for i in range(0, sample_size, chunk_size):
                     for j in range(0, sample_size, chunk_size):
@@ -250,7 +213,6 @@ for seed in range(3,5):
                         if i == j:
                             S_chunk = S_chunk - torch.diag_embed(torch.diag(S_chunk))
 
-                        # 累加张量损失（移除.item()）
                         neg_contrastive_chunk = F.mse_loss(S_chunk, torch.zeros_like(S_chunk))
                         total_neg_contrastive_loss += neg_contrastive_chunk
 
@@ -304,13 +266,12 @@ for seed in range(3,5):
             from sklearn.manifold import TSNE
 
             tsne = TSNE(n_components=2, random_state=seed, perplexity=10)
-            R_2d = tsne.fit_transform(R.reshape(R.shape[0],-1).cpu().detach().numpy())
+            R_2d = tsne.fit_transform(train_data.reshape(train_data.shape[0],-1).cpu().detach().numpy())
 
-            # 创建图形
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 
-            # 绘制真实标签分布
-            cmap = plt.cm.get_cmap('tab10_r', len(np.unique(torch.tensor(train_label).cpu().numpy())))
+            title_font = {'family': 'Times New Roman', 'size': 17}
+            cmap = plt.cm.get_cmap('Set1', len(np.unique(torch.tensor(train_label).cpu().numpy())))
             for label in ax1.get_xticklabels():
                 label.set_fontname('Times New Roman')
                 label.set_fontsize(20)
@@ -320,17 +281,21 @@ for seed in range(3,5):
             scatter1 = ax1.scatter(R_2d[:, 0], R_2d[:, 1],
                                    c=torch.tensor(train_label).cpu().numpy(),
                                    cmap=cmap,
-                                   s=80,  # 增大点的大小
-                                   alpha=0.8,  # 调整透明度
-                                   edgecolors='black',
+                                   s=80,
+                                   alpha=0.8,
                                    linewidth=0.5)
             ax1.grid(True, linestyle='-', alpha=0.7)
-            # legend1 = ax1.legend(*scatter1.legend_elements(),
-            #                      title="Classes",
-            #                      loc='best',
-            #                      fontsize=20,
-            #                      title_fontsize=21,
-            #                      prop={'family': 'Times New Roman', 'size': 24})
+            handles1, labels1 = scatter1.legend_elements()
+            legend1 = ax1.legend(handles1, [f'Class {i}' for i in range(len(handles1))],
+                                 loc='upper right',
+                                 fontsize=16,
+                                 title_fontproperties=title_font,
+                                 prop={'family': 'Times New Roman', 'size': 14},
+                                 markerscale=1.5,
+                                 handlelength=1.5,
+                                 bbox_to_anchor=(0.21, 1)
+                                 )
+            legend1.get_title().set_fontfamily('Times New Roman')
             for label in ax2.get_xticklabels():
                 label.set_fontname('Times New Roman')
                 label.set_fontsize(20)
@@ -338,33 +303,35 @@ for seed in range(3,5):
                 label.set_fontname('Times New Roman')
                 label.set_fontsize(20)
 
-            # ax1.add_artist(legend1)
+            ax1.add_artist(legend1)
 
-            # 绘制聚类结果分布
             # ax2.set_title(f'Predicted Labels Distribution (Car)', fontsize=14, fontweight='bold', fontname='Times New Roman')
             scatter2 = ax2.scatter(R_2d[:, 0], R_2d[:, 1],
                                    c=predict_labels,
                                    cmap=cmap,
                                    s=80,
                                    alpha=0.8,
-                                   edgecolors='black',
                                    linewidth=0.5)
             ax2.grid(True, linestyle='-', alpha=0.7)
-            # legend2 = ax2.legend(*scatter2.legend_elements(),
-            #                      title="Clusters",
-            #                      loc='best',
-            #                      fontsize=20,
-            #                      title_fontsize=21,
-            #                      prop={'family': 'Times New Roman', 'size': 24})
-            # ax2.add_artist(legend2)
+            handles2, labels2 = scatter2.legend_elements()
+            legend2 = ax2.legend(handles2, [f'Cluster {i}' for i in range(len(handles2))],
+                                 loc='upper right',
+                                 fontsize=16,
+                                 title_fontsize=17,
+                                 prop={'family': 'Times New Roman', 'size': 14},
+                                 markerscale=1.5,
+                                 handlelength=1.5,
+                                 bbox_to_anchor=(0.23, 1)
+                                 )
+            legend2.get_title().set_fontfamily('Times New Roman')
+            ax2.add_artist(legend2)
 
             plt.tight_layout()
 
-            # 保存为PDF
             plt.savefig(f'./fig/{dataname}.pdf',
                         format='pdf', bbox_inches='tight')
             plt.show()
-            plt.close(fig)  # 关闭图形以避免内存泄漏
+            plt.close(fig)
 
 
 
