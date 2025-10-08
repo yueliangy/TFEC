@@ -12,7 +12,7 @@ def eva(X, ture_labels, predict_labels, show_details=False):
 
     predict_labels_flat = predict_labels.reshape(-1)
     true_label_flat = ture_labels.reshape(-1)
-    X_reshaped = X.reshape(X.shape[0], -1)  # 将 seq_len 和 feature_dim 合并为一个维度
+    X_reshaped = X.reshape(X.shape[0], -1) 
 
 
     acc = calculate_acc(true_label_flat, predict_labels_flat)
@@ -246,5 +246,6 @@ def clustering(X, true_label, num_cluster):
     pre = metrics["pre"]
     rec = metrics["rec"]
     nmi = metrics["nmi"]
+
 
     return acc, dcv, f1, pre, rec, nmi, slt, dbi, CH, predict_labels, dis
