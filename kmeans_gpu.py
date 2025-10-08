@@ -124,7 +124,7 @@ def pairwise_euclidean_distance(data1, data2, device=torch.device('cuda')):
 
     distance_matrix = torch.cdist(data1.reshape(data1.shape[0], -1),
                                   data2.reshape(data2.shape[0], -1),
-                                  p=2)  # p=2 表示欧氏距离
+                                  p=2) 
 
 
     return distance_matrix.cpu().numpy()
@@ -155,9 +155,10 @@ def pairwise_cosine(data1, data2, device=torch.device('cuda')):
                 cosine_similarity += similarity
 
             cosine_similarity /= data1.shape[2]
-            distance_matrix[i, j] = 1 - cosine_similarity  # 转换为余弦距离
+            distance_matrix[i, j] = 1 - cosine_similarity 
 
     return distance_matrix
+
 
 
 
